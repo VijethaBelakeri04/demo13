@@ -1,0 +1,164 @@
+---
+title: "Test Answers"
+format: html
+editor: visual
+---
+
+### Load packages
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(janitor)
+```
+
+### 1. Read csv and clean column names and print column names
+
+```{r, message=FALSE, warning=FALSE}
+"10_Property_stolen_and_recovered.csv" %>% 
+  read_csv() %>% 
+  clean_names() -> df1
+
+print(colnames(df1))
+```
+
+### 2. Rename area_name to state_ut
+
+```{r}
+df1 %>% 
+  rename("state_ut" = "area_name") -> df2
+```
+
+### 3. How many state_ut are there
+
+```{r}
+df2 %>% 
+  pull(state_ut) %>%
+  unique() %>%
+  length()
+```
+
+### 4. How many crime groups are there and what are those
+
+```{r}
+df2 %>% pull(group_name) %>% unique() 
+df2 %>% pull(group_name) %>% unique() %>% length()
+```
+
+### 5. In group_name what is "Total Property" and what should we do? ====
+
+Ans. "Total Property" is the sum of other groups (Burglary, Criminal Breach of Trust, Robbery, Theft and Other).
+
+Since "Total Property" is not a crime but a total of all other crimes lets filter it out
+
+```{r}
+df2 %>% 
+  filter(group_name != "Total Property") -> df3
+```
+
+### 6. What is the total no of property stolen cases and total value - All india
+
+```{r}
+df3 %>% 
+  pull(cases_property_stolen) %>% 
+  sum(na.rm = T) -> total_cases
+
+df3 %>% 
+  pull(value_of_property_stolen) %>% 
+  sum(na.rm = T) -> total_value
+```
+
+### 7. What is the total no of property stolen cases and total value - All india - Year wise. (With table and plot)
+
+```{r}
+df3 %>% 
+  group_by(year) %>% 
+  summarise(total_cases = sum(cases_property_stolen, na.rm = T),
+            total_value = sum(value_of_property_stolen, na.rm = T)) -> year_wise_summary
+
+year_wise_summary %>% 
+  mutate(total_cases = total_cases/100000) %>% 
+  ggplot(aes(x = year, 
+             y = total_cases)) +
+  geom_col(fill = "orange") +
+  scale_x_continuous(breaks = c(2000:2011)) +
+  labs(title = "Total No of theft cases",
+       subtitle = "2001 to 2010",
+       x = "Year",
+       y = "Total No of cases (Lakh)") +
+  theme_light()
+```
+
+```{r}
+year_wise_summary %>% 
+  mutate(total_value = total_value/10000000000) %>% 
+  ggplot(aes(x = year, 
+             y = total_value)) +
+  geom_col(fill = "steelblue") +
+  scale_x_continuous(breaks = c(2000:2011)) +
+  labs(title = "Total value of Theft cases",
+       subtitle = "2001 to 2010",
+       x = "Year",
+       y = "Total value of cases (000'cr)") +
+  theme_light()
+```
+
+### 8. States with no of cases, Plot the same
+
+```{r}
+df3 %>% 
+  group_by(state_ut) %>% 
+  summarise(total_cases = sum(cases_property_stolen, na.rm = T)) %>% 
+  mutate(total_cases = total_cases/100000) %>% 
+  mutate(state_ut = state_ut %>% fct_reorder(total_cases)) %>% 
+  ggplot(aes(x = state_ut,
+             y = total_cases)) +
+  geom_col(fill = "red") +
+  coord_flip() +
+  theme_minimal() +
+  labs(title = "State with no. of stolen cases",
+       subtitle = "2001 to 2010",
+       y = "Total No of cases (Lakh)",
+       x = NULL)
+```
+
+### 9. Correlation plot between Stolen and recover
+
+```{r}
+df3 %>% 
+  mutate(year = year %>% factor()) %>% 
+  ggplot(aes(x = cases_property_stolen,
+             y = cases_property_recovered,
+             color = year)) +
+  geom_point() +
+  scale_x_continuous(breaks = seq(0,100000, 5000)) +
+  scale_y_continuous(breaks = seq(0,100000, 1000)) +
+  labs(title = "Correlation between Stolen and Recovered Property",
+       subtitle = "2001:2010",
+       x = "Stolen",
+       y = "Recovered",
+       color = NULL)
+```
+
+### 10. No of Stolen and Recover cases year wise
+
+```{r}
+df3 %>% 
+  pivot_longer(c("cases_property_stolen", "cases_property_recovered"),
+               names_to = "type",
+               values_to = "no_cases") %>% 
+  mutate(year = year %>% factor()) %>% 
+  group_by(year, type) %>% 
+  summarise(count = sum(no_cases, na.rm = T)) %>% 
+  mutate(count = count/100000) %>% 
+  ggplot(aes(x = year, 
+             y = count,
+             fill = type)) +
+  geom_col() +
+  scale_fill_manual(values = c("darkgreen", "orange")) +
+  labs(title = "No of Stolen and Recover cases year wise",
+       subtitle = "2001-2010",
+       x = NULL,
+       y = "Total No of cases (Lakh)",
+       fill = NULL) +
+  theme_linedraw()
+```
